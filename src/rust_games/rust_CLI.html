@@ -153,8 +153,8 @@
     <div id="victory-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-500">
         <div class="bg-slate-900 border border-orange-500 p-8 rounded-2xl max-w-md text-center shadow-[0_0_50px_rgba(249,115,22,0.3)] transform scale-95 transition-transform duration-500" id="victory-content">
             <div class="text-6xl mb-4">🦀</div>
-            <h2 class="text-3xl font-bold text-white mb-2">Compiling Complete!</h2>
-            <p class="text-slate-400 mb-6">You've mastered the essentials of the Cargo ecosystem.</p>
+            <h2 class="text-3xl font-bold text-white mb-2">Mastery Achieved!</h2>
+            <p class="text-slate-400 mb-6">You've mastered the entire Cargo workflow.</p>
             <div class="flex flex-col gap-3">
                 <button onclick="location.reload()" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 px-6 rounded-lg transition-colors">
                     Play Again
@@ -179,6 +179,7 @@
                 mission: "We need to start a new project. Initialize a standard binary application named <span class='text-orange-400 font-mono bg-slate-700 px-1 rounded'>hello_rust</span>.",
                 check: (cmd) => cmd === "cargo new hello_rust",
                 successMsg: "Created binary (application) `hello_rust` package.",
+                explanation: "ℹ️ WHAT HAPPENED: `cargo new` created a directory structure with a `Cargo.toml` file (project metadata) and a `src/main.rs` file (your source code). It also initialized a new git repository for you.",
                 failMsg: "Command not recognized. Try creating a new project with the specific name.",
                 hint: "Use `cargo new <name>`",
                 onPass: () => { gameState.path = "~/hello_rust"; gameState.projectName = "hello_rust"; }
@@ -188,6 +189,7 @@
                 mission: "Great! We are now inside the project directory. Let's make sure the default code doesn't have syntax errors. Do a quick check without compiling the full binary.",
                 check: (cmd) => cmd === "cargo check",
                 successMsg: "Finished dev [unoptimized + debuginfo] target(s) in 0.05s.",
+                explanation: "ℹ️ WHAT HAPPENED: `cargo check` is much faster than build. It validates your syntax and type safety but skips the final step of generating machine code. Use this constantly while coding to catch errors early.",
                 failMsg: "Not quite. We want a fast check, not a full build.",
                 hint: "Use `cargo check`"
             },
@@ -196,6 +198,7 @@
                 mission: "The code is valid. Now, let's compile a debug version so we can have an executable.",
                 check: (cmd) => cmd === "cargo build",
                 successMsg: "Compiling hello_rust v0.1.0\nFinished dev [unoptimized + debuginfo] target(s) in 1.2s",
+                explanation: "ℹ️ WHAT HAPPENED: Cargo compiled your source code into an executable file located at `target/debug/hello_rust`. Since we didn't specify release, it includes debug symbols, making it slower but debuggable.",
                 failMsg: "We need to build the artifact.",
                 hint: "Use `cargo build`"
             },
@@ -204,6 +207,7 @@
                 mission: "Development is fast. Instead of building and then running manually, use the command that does both in one step.",
                 check: (cmd) => cmd === "cargo run",
                 successMsg: "Running `target/debug/hello_rust`\nHello, world!",
+                explanation: "ℹ️ WHAT HAPPENED: `cargo run` is a convenience command. It checked if any files changed, recompiled if necessary, and then immediately executed the binary.",
                 failMsg: "Use the command that builds AND runs.",
                 hint: "Use `cargo run`"
             },
@@ -212,22 +216,52 @@
                 mission: "We've added 'rand' to the dependencies in Cargo.toml. We need to update our dependencies and compile.",
                 check: (cmd) => cmd === "cargo build" || cmd === "cargo check" || cmd === "cargo update",
                 successMsg: "Updating crates.io index\nDownloaded rand v0.8.5\nCompiling rand v0.8.5\nFinished dev target(s).",
+                explanation: "ℹ️ WHAT HAPPENED: Cargo saw a new entry in `Cargo.toml`. It reached out to crates.io (the Rust package registry), downloaded the library, compiled it, and updated `Cargo.lock` to ensure everyone uses this exact version.",
                 failMsg: "To download new dependencies, we usually just build or check again.",
                 hint: "Running `cargo build` will automatically fetch new dependencies."
             },
             {
                 id: 6,
-                mission: "The code looks messy. Run the linter to catch common mistakes.",
+                mission: "The code works, but it looks messy. Let's automatically format the source code to match the standard Rust style.",
+                check: (cmd) => cmd === "cargo fmt",
+                successMsg: "Reformatted src/main.rs",
+                explanation: "ℹ️ WHAT HAPPENED: `cargo fmt` ran `rustfmt`, which rewrote your code to follow the official Rust style guidelines (spacing, braces, etc.). This ends arguments about code style!",
+                failMsg: "We need to format the code.",
+                hint: "Use `cargo fmt`"
+            },
+            {
+                id: 7,
+                mission: "Let's make sure our code quality is high. Run the linter to catch common mistakes and non-idiomatic code.",
                 check: (cmd) => cmd === "cargo clippy",
                 successMsg: "Checking hello_rust v0.1.0\nFinished dev [unoptimized + debuginfo] target(s) in 0.42s\nNo issues found.",
+                explanation: "ℹ️ WHAT HAPPENED: `cargo clippy` is a collection of lints (rules) to catch common mistakes. It's like having a helpful senior developer look over your shoulder.",
                 failMsg: "The linter is named after a helpful paperclip assistant...",
                 hint: "Use `cargo clippy`"
             },
             {
-                id: 7,
+                id: 8,
+                mission: "Time to verify our logic. Run the unit tests included in the project.",
+                check: (cmd) => cmd === "cargo test",
+                successMsg: "Compiling hello_rust v0.1.0\nRunning unittests src/main.rs\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out",
+                explanation: "ℹ️ WHAT HAPPENED: Cargo compiled a special test binary that includes functions annotated with `#[test]` and executed them. It reports pass/fail status for each test.",
+                failMsg: "We need to run the test suite.",
+                hint: "Use `cargo test`"
+            },
+            {
+                id: 9,
+                mission: "We need to share this with others. Generate documentation for our project and open it in the browser.",
+                check: (cmd) => cmd === "cargo doc --open",
+                successMsg: "Documenting hello_rust v0.1.0\n    Finished dev [unoptimized + debuginfo] target(s) in 0.98s\n     Opening target/doc/hello_rust/index.html",
+                explanation: "ℹ️ WHAT HAPPENED: Cargo used comments in your code (starting with `///`) to generate HTML documentation. It also generated docs for all your dependencies! `--open` launched it in your default browser.",
+                failMsg: "We want to generate docs AND open them.",
+                hint: "Use `cargo doc --open`"
+            },
+            {
+                id: 10,
                 mission: "We are ready to ship! Build the project with optimizations enabled for the final release.",
                 check: (cmd) => cmd === "cargo build --release",
                 successMsg: "Compiling hello_rust v0.1.0\nFinished release [optimized] target(s) in 3.4s",
+                explanation: "ℹ️ WHAT HAPPENED: `cargo build --release` compiled your code with heavy optimizations (O3). This takes longer to compile, but the resulting binary in `target/release/` runs much faster and is smaller.",
                 failMsg: "Remember the flag for optimizations.",
                 hint: "Use `cargo build --release`"
             }
@@ -281,6 +315,12 @@
                 // Success
                 setTimeout(() => {
                     addToHistory(currentLevel.successMsg, 'system', 'text-green-400');
+                    
+                    // Add explanation block
+                    if (currentLevel.explanation) {
+                        addToHistory(currentLevel.explanation, 'system', 'text-blue-400 font-bold border-l-2 border-blue-500 pl-3 my-2 bg-blue-900/20 p-2 rounded');
+                    }
+
                     if (currentLevel.onPass) currentLevel.onPass();
                     
                     gameState.level++;
