@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rusty: AI-Powered Rust Tutor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        .code-font { font-family: 'Menlo', 'Monaco', 'Courier New', monospace; }
+        
+        /* Syntax highlighting simulation for textarea */
+        .editor-container { position: relative; height: 100%; width: 100%; }
+        textarea {
+            resize: none;
+            outline: none;
+            caret-color: #fff;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Header -->
+    <header class="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-6 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">R</div>
+            <h1 class="font-bold text-lg tracking-wide">Rusty <span class="text-gray-400 font-normal text-sm ml-2">AI Tutor</span></h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="text-xs text-gray-400">
+                Powered by <span class="text-blue-400 font-semibold">Gemini 2.5</span>
+            </div>
+            <button onclick="resetLevel()" class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded transition">Reset Code</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Left Sidebar: Levels -->
+        <aside class="w-64 bg-gray-900 border-r border-gray-700 flex flex-col shrink-0">
+            <div class="p-4 border-b border-gray-700">
+                <h2 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Curriculum</h2>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2 space-y-1" id="level-list">
+                <!-- Levels injected by JS -->
+            </div>
+        </aside>
+
+        <!-- Middle: Task & Chat -->
+        <section class="w-1/3 flex flex-col border-r border-gray-700 bg-gray-800/50">
+            <!-- Task Description -->
+            <div class="h-1/3 p-6 border-b border-gray-700 overflow-y-auto">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-orange-900 text-orange-200 border border-orange-700" id="level-badge">Level 1</span>
+                    <h2 class="font-bold text-xl text-white" id="level-title">Loading...</h2>
+                </div>
+                <p class="text-gray-300 text-sm leading-relaxed" id="level-desc">
+                    Select a level to begin.
+                </p>
+            </div>
+
+            <!-- Chat / AI Feedback -->
+            <div class="flex-1 flex flex-col min-h-0 bg-gray-900">
+                <div class="p-3 bg-gray-800 border-b border-gray-700 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                    <span class="text-xs font-bold text-gray-300">Tutor Chat</span>
+                </div>
+                <div id="chat-history" class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <!-- Chat messages go here -->
+                    <div class="flex gap-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-xs">AI</div>
+                        <div class="bg-gray-800 p-3 rounded-lg rounded-tl-none text-sm text-gray-300 shadow-sm border border-gray-700">
+                            Hi! I'm Rusty. I'll be checking your code and helping you learn Rust concepts. Choose a level to start!
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chat Input (Optional for asking Qs) -->
+                <div class="p-3 bg-gray-800 border-t border-gray-700">
+                    <form id="chat-form" class="flex gap-2">
+                        <input type="text" id="chat-input" placeholder="Ask a question about this level..." 
+                            class="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none placeholder-gray-600">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right: Code Editor -->
+        <main class="flex-1 flex flex-col bg-[#1e1e1e]">
+            <!-- Toolbar -->
+            <div class="h-10 bg-[#252526] flex items-center justify-between px-4 border-b border-[#333]">
+                <span class="text-xs text-gray-400 font-mono">src/main.rs</span>
+                <div class="flex items-center gap-2">
+                    <span id="status-indicator" class="text-xs text-gray-500 flex items-center gap-1 hidden">
+                        <span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                        Compiling...
+                    </span>
+                    <button id="run-btn" class="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white text-xs font-bold px-4 py-1.5 rounded transition">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        RUN & CHECK
+                    </button>
+                </div>
+            </div>
+
+            <!-- Editor -->
+            <div class="flex-1 relative">
+                <textarea id="code-editor" class="w-full h-full bg-[#1e1e1e] text-[#d4d4d4] p-4 code-font text-sm leading-6 border-none focus:ring-0" spellcheck="false">fn main() {
+    println!("Select a level to start!");
+}</textarea>
+            </div>
+
+            <!-- Console Output Mock -->
+            <div class="h-1/3 bg-[#0f0f0f] border-t border-[#333] flex flex-col">
+                <div class="px-4 py-1 bg-[#181818] border-b border-[#333] text-xs text-gray-400 font-bold uppercase tracking-wider">Terminal Output</div>
+                <div id="terminal-output" class="flex-1 p-4 font-mono text-sm text-gray-300 overflow-y-auto whitespace-pre-wrap">Waiting for input...</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals or overlays could go here -->
+
+    <script>
+        // --- Configuration ---
+        const apiKey = ""; // API Key handled by environment
+
+        // --- Game Content (Levels) ---
+        const levels = [
+            {
+                id: 0,
+                title: "Hello, World!",
+                description: "Welcome to Rust! Your first task is simple. Complete the `main` function to print the text \"Hello, Rust!\" to the console.\n\nTip: Use the `println!` macro.",
+                starterCode: `fn main() {
+    // Write your code here
+    
+}`,
+                hint: "In Rust, print lines use the println! macro. Don't forget the semicolon!"
+            },
+            {
+                id: 1,
+                title: "Variables (Immutable)",
+                description: "Variables are immutable by default in Rust. \n\n1. Declare a variable named `x` and assign it the value `5`.\n2. Print the value of `x` like this: `x is 5`.",
+                starterCode: `fn main() {
+    // Declare x here
+
+    println!("x is {}", x);
+}`,
+                hint: "Use `let variable_name = value;`. The `{}` in println is a placeholder."
+            },
+            {
+                id: 2,
+                title: "Mutability",
+                description: "To change a variable's value, you must make it mutable.\n\n1. Declare a mutable variable `count` starting at 1.\n2. Change `count` to 2.\n3. Print `count`.",
+                starterCode: `fn main() {
+    let count = 1;
+    // Make count mutable above, then change it here
+    
+    println!("Count is {}", count);
+}`,
+                hint: "Use the keyword `mut` after `let`. E.g., `let mut x = ...`"
+            },
+            {
+                id: 3,
+                title: "Shadowing",
+                description: "Rust allows you to declare a new variable with the same name as a previous one. This is called 'shadowing'.\n\n1. Declare `x` = 5.\n2. Shadow `x` by redeclaring it as `x + 1`.\n3. Shadow it again by redeclaring it as `x * 2`.\n4. Print `x` (should be 12).",
+                starterCode: `fn main() {
+    let x = 5;
+    
+    // Shadow x here
+    
+    println!("x is {}", x);
+}`,
+                hint: "Just use `let x = ...` again. You don't need `mut` for shadowing."
+            },
+            {
+                id: 4,
+                title: "Basic Functions",
+                description: "Functions are declared with `fn`.\n\n1. Create a function named `five` that takes no arguments and returns the integer `5`.\n2. Call it in main and print the result.",
+                starterCode: `fn main() {
+    let x = five();
+    println!("five() returns {}", x);
+}
+
+// Define function 'five' here
+`,
+                hint: "Return types are specified with `-> i32`. You can return implicitly by leaving off the semicolon on the last line."
+            }
+        ];
+
+        // --- State ---
+        let currentLevelIndex = 0;
+        let isProcessing = false;
+
+        // --- DOM Elements ---
+        const levelListEl = document.getElementById('level-list');
+        const codeEditor = document.getElementById('code-editor');
+        const terminalOutput = document.getElementById('terminal-output');
+        const chatHistory = document.getElementById('chat-history');
+        const runBtn = document.getElementById('run-btn');
+        const statusIndicator = document.getElementById('status-indicator');
+        const levelTitleEl = document.getElementById('level-title');
+        const levelBadgeEl = document.getElementById('level-badge');
+        const levelDescEl = document.getElementById('level-desc');
+
+        // --- Initialization ---
+        function init() {
+            renderLevelList();
+            loadLevel(0);
+
+            runBtn.addEventListener('click', runCheck);
+            document.getElementById('chat-form').addEventListener('submit', handleChatSubmit);
+        }
+
+        // --- UI Logic ---
+        function renderLevelList() {
+            levelListEl.innerHTML = '';
+            levels.forEach((level, index) => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-4 py-3 text-sm border-l-2 transition-colors flex items-center justify-between group ${
+                    index === currentLevelIndex 
+                    ? 'bg-gray-800 border-orange-500 text-white' 
+                    : 'border-transparent text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                }`;
+                btn.onclick = () => loadLevel(index);
+                btn.innerHTML = `
+                    <span>${index + 1}. ${level.title}</span>
+                    ${index < currentLevelIndex ? '<svg class="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                `;
+                levelListEl.appendChild(btn);
+            });
+        }
+
+        function loadLevel(index) {
+            currentLevelIndex = index;
+            const level = levels[index];
+            
+            levelTitleEl.textContent = level.title;
+            levelBadgeEl.textContent = `Level ${index + 1}`;
+            levelDescEl.innerText = level.description; // using innerText to preserve newlines
+            
+            codeEditor.value = level.starterCode;
+            terminalOutput.textContent = "Waiting for input...";
+            
+            // Add system message to chat
+            addChatMessage('ai', `Level ${index + 1} loaded. ${level.hint}`);
+            
+            renderLevelList(); // Re-render to highlight active
+        }
+
+        function resetLevel() {
+            loadLevel(currentLevelIndex);
+        }
+
+        // --- Gemini Integration ---
+
+        async function runCheck() {
+            if (isProcessing) return;
+            isProcessing = true;
+            updateStatus(true);
+            terminalOutput.textContent = "Compiling and analyzing...";
+
+            const userCode = codeEditor.value;
+            const currentLevel = levels[currentLevelIndex];
+
+            const prompt = `
+                You are a Rust Compiler and Tutor.
+                The user is trying to solve this task: "${currentLevel.description}"
+                
+                Here is their code:
+                \`\`\`rust
+                ${userCode}
+                \`\`\`
+                
+                Analyze this code strictly.
+                1. Does it compile? (Ignore main function wrapper if it looks like a snippet, but usually it's full code).
+                2. Does it solve the specific requirements of the task?
+                3. What is the output of the program?
+                
+                Respond in this JSON format ONLY (no markdown formatting):
+                {
+                    "compiled": boolean,
+                    "passed": boolean,
+                    "output": "The console output or compilation error message",
+                    "feedback": "A helpful tutor message explaining what went wrong or congratulating them."
+                }
+            `;
+
+            try {
+                const response = await callGemini(prompt);
+                
+                // Parse the response
+                // Sometimes Gemini wraps JSON in ```json blocks
+                const jsonStr = response.replace(/```json/g, '').replace(/```/g, '').trim();
+                const result = JSON.parse(jsonStr);
+
+                // Update UI
+                if (result.compiled) {
+                    terminalOutput.textContent = result.output || "(No output)";
+                    terminalOutput.className = "flex-1 p-4 font-mono text-sm text-gray-300 overflow-y-auto whitespace-pre-wrap";
+                } else {
+                    terminalOutput.textContent = "error: " + result.output;
+                    terminalOutput.className = "flex-1 p-4 font-mono text-sm text-red-400 overflow-y-auto whitespace-pre-wrap";
+                }
+
+                if (result.passed) {
+                    addChatMessage('ai', `✅ Passed! ${result.feedback}`);
+                    // Maybe show next level button
+                    addChatMessage('ai', `Ready for the next level?`, true);
+                } else {
+                    addChatMessage('ai', `❌ Not quite. ${result.feedback}`);
+                }
+
+            } catch (error) {
+                console.error(error);
+                terminalOutput.textContent = "Error connecting to AI Tutor. Please try again.";
+            } finally {
+                isProcessing = false;
+                updateStatus(false);
+            }
+        }
+
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            const inputEl = document.getElementById('chat-input');
+            const question = inputEl.value.trim();
+            if (!question) return;
+
+            addChatMessage('user', question);
+            inputEl.value = '';
+
+            const currentCode = codeEditor.value;
+            const level = levels[currentLevelIndex];
+
+            const prompt = `
+                Context: The user is learning Rust.
+                Current Task: ${level.title} - ${level.description}
+                User's Current Code:
+                \`\`\`rust
+                ${currentCode}
+                \`\`\`
+                User Question: "${question}"
+                
+                Answer the question as a helpful Rust tutor. Be concise. If they are asking for the answer, give a hint instead.
+            `;
+
+            try {
+                addChatMessage('ai', "Thinking...");
+                // Remove the "Thinking..." message later or replace it
+                const response = await callGemini(prompt, false); // false = text response
+                
+                // Remove the last AI message (the thinking one)
+                chatHistory.lastElementChild.remove();
+                
+                addChatMessage('ai', response);
+
+            } catch (err) {
+                chatHistory.lastElementChild.textContent = "Error: Could not reach AI.";
+            }
+        }
+
+        // --- API Helper ---
+        async function callGemini(prompt, expectJson = true) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{
+                    parts: [{ text: prompt }]
+                }]
+            };
+
+            if (expectJson) {
+                payload.generationConfig = {
+                    responseMimeType: "application/json"
+                };
+            }
+
+            // Exponential backoff retry logic
+            let attempt = 0;
+            const maxRetries = 3;
+            const delays = [1000, 2000, 4000];
+
+            while (attempt <= maxRetries) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+
+                    const data = await response.json();
+                    return data.candidates[0].content.parts[0].text;
+                } catch (error) {
+                    attempt++;
+                    if (attempt > maxRetries) throw error;
+                    await new Promise(r => setTimeout(r, delays[attempt - 1]));
+                }
+            }
+        }
+
+        // --- Helper Functions ---
+        function addChatMessage(role, text, isNextLevelBtn = false) {
+            const div = document.createElement('div');
+            div.className = "flex gap-3 animate-fade-in";
+            
+            if (role === 'ai') {
+                div.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-xs text-white shadow-lg">AI</div>
+                    <div class="bg-gray-800 p-3 rounded-lg rounded-tl-none text-sm text-gray-300 shadow-sm border border-gray-700 flex flex-col gap-2">
+                        <div>${text}</div>
+                        ${isNextLevelBtn ? `<button onclick="loadLevel(${currentLevelIndex + 1})" class="bg-green-600 hover:bg-green-500 text-white text-xs font-bold py-2 px-4 rounded self-start mt-2">Go to Next Level &rarr;</button>` : ''}
+                    </div>
+                `;
+            } else {
+                div.className += " flex-row-reverse";
+                div.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-gray-600 flex-shrink-0 flex items-center justify-center text-xs text-white">Me</div>
+                    <div class="bg-blue-900/50 p-3 rounded-lg rounded-tr-none text-sm text-blue-100 border border-blue-800">
+                        ${text}
+                    </div>
+                `;
+            }
+            
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function updateStatus(loading) {
+            if (loading) {
+                statusIndicator.classList.remove('hidden');
+                runBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                codeEditor.classList.add('opacity-50');
+            } else {
+                statusIndicator.classList.add('hidden');
+                runBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                codeEditor.classList.remove('opacity-50');
+                codeEditor.focus();
+            }
+        }
+
+        // Boot
+        init();
+    </script>
+</body>
+</html>
