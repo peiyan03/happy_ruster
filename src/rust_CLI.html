@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargo CLI Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #e2e8f0;
+        }
+        .font-mono {
+            font-family: 'Fira Code', monospace;
+        }
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .scanline {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.1) 50%,
+                rgba(0,0,0,0.1)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+        .crt-flicker {
+            animation: flicker 0.15s infinite;
+            pointer-events: none;
+        }
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            100% { opacity: 1; }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center overflow-hidden relative">
+
+    <!-- Ambient Background Elements -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+        <div class="absolute -top-20 -left-20 w-96 h-96 bg-orange-500 rounded-full blur-3xl mix-blend-screen animate-pulse"></div>
+        <div class="absolute top-1/2 -right-20 w-80 h-80 bg-red-600 rounded-full blur-3xl mix-blend-screen" style="animation-delay: 1s;"></div>
+    </div>
+
+    <!-- Game Container -->
+    <div class="z-10 w-full max-w-4xl p-4 flex flex-col gap-6 h-full max-h-[90vh]">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-end border-b border-slate-700 pb-4">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                    <span class="text-orange-500 text-4xl">🦀</span> Cargo CLI Master
+                </h1>
+                <p class="text-slate-400 text-sm mt-1">Learn Rust's package manager by doing.</p>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-slate-400 uppercase tracking-widest font-semibold">Progress</div>
+                <div class="text-2xl font-mono text-orange-400" id="progress-display">0 / 7</div>
+            </div>
+        </header>
+
+        <!-- Main Game Area -->
+        <main class="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
+            
+            <!-- Left Panel: Mission Control -->
+            <div class="md:w-1/3 flex flex-col gap-4">
+                <div class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-lg p-6 flex flex-col shadow-xl">
+                    <h2 class="text-xs text-orange-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Current Mission
+                    </h2>
+                    <div id="mission-text" class="text-lg font-medium text-white leading-relaxed">
+                        Initializing...
+                    </div>
+                    <div id="hint-box" class="mt-6 pt-4 border-t border-slate-700/50 hidden">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Hint:</span>
+                        <p id="hint-text" class="text-sm text-slate-400 mt-1 italic"></p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/50 border border-slate-800 rounded-lg p-4 flex-1 overflow-y-auto">
+                    <h3 class="text-xs text-slate-500 font-bold uppercase tracking-widest mb-3">Command Reference</h3>
+                    <ul class="space-y-2 text-sm text-slate-300 font-mono">
+                        <li class="opacity-50 hover:opacity-100 transition-opacity cursor-help" title="Create new project">cargo new &lt;name&gt;</li>
+                        <li class="opacity-50 hover:opacity-100 transition-opacity cursor-help" title="Build debug ver">cargo build</li>
+                        <li class="opacity-50 hover:opacity-100 transition-opacity cursor-help" title="Build & Run">cargo run</li>
+                        <li class="opacity-50 hover:opacity-100 transition-opacity cursor-help" title="Fast check">cargo check</li>
+                        <li class="opacity-50 hover:opacity-100 transition-opacity cursor-help" title="Run tests">cargo test</li>
+                        <li class="opacity-50 hover:opacity-100 transition-opacity cursor-help" title="Release build">cargo build --release</li>
+                        <li class="opacity-50 hover:opacity-100 transition-opacity cursor-help" title="Linter">cargo clippy</li>
+                        <li class="opacity-50 hover:opacity-100 transition-opacity cursor-help" title="Formatter">cargo fmt</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right Panel: Terminal -->
+            <div class="md:w-2/3 relative group">
+                <!-- Terminal Window -->
+                <div class="absolute inset-0 bg-black rounded-lg shadow-2xl overflow-hidden flex flex-col border border-slate-700 ring-4 ring-slate-900/50">
+                    <!-- Terminal Header -->
+                    <div class="bg-slate-800 px-4 py-2 flex items-center gap-2 border-b border-slate-700 select-none">
+                        <div class="flex gap-1.5">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <div class="flex-1 text-center text-xs text-slate-400 font-mono">user@rust-station:~</div>
+                    </div>
+
+                    <!-- Terminal Output Area -->
+                    <div class="flex-1 p-4 font-mono text-sm overflow-y-auto" id="terminal-history" onclick="document.getElementById('cmd-input').focus()">
+                        <div class="text-slate-500 mb-2">Rust Cargo Shell v1.75.0</div>
+                        <div class="text-slate-500 mb-4">Type your commands below.</div>
+                        <!-- Dynamic History Here -->
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-2 font-mono text-sm">
+                        <span class="text-green-500 font-bold">➜</span>
+                        <span class="text-blue-400 font-bold" id="path-display">~</span>
+                        <input type="text" id="cmd-input" class="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-600" placeholder="Type cargo command..." autocomplete="off" spellcheck="false" autofocus>
+                    </div>
+
+                    <!-- CRT Effects -->
+                    <div class="absolute inset-0 pointer-events-none scanline opacity-20"></div>
+                    <div class="absolute inset-0 pointer-events-none crt-flicker opacity-5"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-500">
+        <div class="bg-slate-900 border border-orange-500 p-8 rounded-2xl max-w-md text-center shadow-[0_0_50px_rgba(249,115,22,0.3)] transform scale-95 transition-transform duration-500" id="victory-content">
+            <div class="text-6xl mb-4">🦀</div>
+            <h2 class="text-3xl font-bold text-white mb-2">Compiling Complete!</h2>
+            <p class="text-slate-400 mb-6">You've mastered the essentials of the Cargo ecosystem.</p>
+            <div class="flex flex-col gap-3">
+                <button onclick="location.reload()" class="bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        const gameState = {
+            level: 0,
+            history: [],
+            path: "~", // Current directory visual
+            projectName: "rusty_app"
+        };
+
+        // Levels Configuration
+        const levels = [
+            {
+                id: 1,
+                mission: "We need to start a new project. Initialize a standard binary application named <span class='text-orange-400 font-mono bg-slate-700 px-1 rounded'>hello_rust</span>.",
+                check: (cmd) => cmd === "cargo new hello_rust",
+                successMsg: "Created binary (application) `hello_rust` package.",
+                failMsg: "Command not recognized. Try creating a new project with the specific name.",
+                hint: "Use `cargo new <name>`",
+                onPass: () => { gameState.path = "~/hello_rust"; gameState.projectName = "hello_rust"; }
+            },
+            {
+                id: 2,
+                mission: "Great! We are now inside the project directory. Let's make sure the default code doesn't have syntax errors. Do a quick check without compiling the full binary.",
+                check: (cmd) => cmd === "cargo check",
+                successMsg: "Finished dev [unoptimized + debuginfo] target(s) in 0.05s.",
+                failMsg: "Not quite. We want a fast check, not a full build.",
+                hint: "Use `cargo check`"
+            },
+            {
+                id: 3,
+                mission: "The code is valid. Now, let's compile a debug version so we can have an executable.",
+                check: (cmd) => cmd === "cargo build",
+                successMsg: "Compiling hello_rust v0.1.0\nFinished dev [unoptimized + debuginfo] target(s) in 1.2s",
+                failMsg: "We need to build the artifact.",
+                hint: "Use `cargo build`"
+            },
+            {
+                id: 4,
+                mission: "Development is fast. Instead of building and then running manually, use the command that does both in one step.",
+                check: (cmd) => cmd === "cargo run",
+                successMsg: "Running `target/debug/hello_rust`\nHello, world!",
+                failMsg: "Use the command that builds AND runs.",
+                hint: "Use `cargo run`"
+            },
+            {
+                id: 5,
+                mission: "We've added 'rand' to the dependencies in Cargo.toml. We need to update our dependencies and compile.",
+                check: (cmd) => cmd === "cargo build" || cmd === "cargo check" || cmd === "cargo update",
+                successMsg: "Updating crates.io index\nDownloaded rand v0.8.5\nCompiling rand v0.8.5\nFinished dev target(s).",
+                failMsg: "To download new dependencies, we usually just build or check again.",
+                hint: "Running `cargo build` will automatically fetch new dependencies."
+            },
+            {
+                id: 6,
+                mission: "The code looks messy. Run the linter to catch common mistakes.",
+                check: (cmd) => cmd === "cargo clippy",
+                successMsg: "Checking hello_rust v0.1.0\nFinished dev [unoptimized + debuginfo] target(s) in 0.42s\nNo issues found.",
+                failMsg: "The linter is named after a helpful paperclip assistant...",
+                hint: "Use `cargo clippy`"
+            },
+            {
+                id: 7,
+                mission: "We are ready to ship! Build the project with optimizations enabled for the final release.",
+                check: (cmd) => cmd === "cargo build --release",
+                successMsg: "Compiling hello_rust v0.1.0\nFinished release [optimized] target(s) in 3.4s",
+                failMsg: "Remember the flag for optimizations.",
+                hint: "Use `cargo build --release`"
+            }
+        ];
+
+        // DOM Elements
+        const terminalHistory = document.getElementById('terminal-history');
+        const cmdInput = document.getElementById('cmd-input');
+        const missionText = document.getElementById('mission-text');
+        const progressDisplay = document.getElementById('progress-display');
+        const pathDisplay = document.getElementById('path-display');
+        const hintBox = document.getElementById('hint-box');
+        const hintText = document.getElementById('hint-text');
+
+        // Init
+        function initGame() {
+            updateUI();
+            cmdInput.focus();
+            
+            // Add event listener
+            cmdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleCommand(cmdInput.value.trim());
+                    cmdInput.value = '';
+                }
+            });
+            
+            // Focus trap for game feel
+            document.addEventListener('click', () => {
+                // simple heuristic to keep focus unless selecting text
+                if (window.getSelection().toString().length === 0) {
+                    cmdInput.focus();
+                }
+            });
+        }
+
+        // Logic
+        function handleCommand(rawCmd) {
+            // Normalize spaces
+            const cmd = rawCmd.replace(/\s+/g, ' ').trim();
+            
+            if (!cmd) return;
+
+            // Add command to history
+            addToHistory(cmd, 'user');
+
+            // Check against current level
+            const currentLevel = levels[gameState.level];
+            
+            if (currentLevel.check(cmd)) {
+                // Success
+                setTimeout(() => {
+                    addToHistory(currentLevel.successMsg, 'system', 'text-green-400');
+                    if (currentLevel.onPass) currentLevel.onPass();
+                    
+                    gameState.level++;
+                    
+                    if (gameState.level >= levels.length) {
+                        triggerVictory();
+                    } else {
+                        updateUI();
+                        // Scroll to bottom
+                        terminalHistory.scrollTop = terminalHistory.scrollHeight;
+                    }
+                }, 200);
+            } else {
+                // Failure
+                setTimeout(() => {
+                    addToHistory(`error: ${currentLevel.failMsg}`, 'system', 'text-red-400');
+                    // Show hint if failed
+                    showHint();
+                    terminalHistory.scrollTop = terminalHistory.scrollHeight;
+                }, 200);
+            }
+        }
+
+        function addToHistory(text, type, colorClass = '') {
+            const row = document.createElement('div');
+            row.className = `mb-1 ${type === 'user' ? 'text-white font-bold mt-4' : 'text-slate-300'} ${colorClass} whitespace-pre-wrap`;
+            
+            if (type === 'user') {
+                row.innerHTML = `<span class="text-green-500 mr-2">➜</span><span class="text-blue-400 mr-2">${gameState.path}</span> ${escapeHtml(text)}`;
+            } else {
+                row.innerHTML = escapeHtml(text);
+            }
+            
+            terminalHistory.appendChild(row);
+            terminalHistory.scrollTop = terminalHistory.scrollHeight;
+        }
+
+        function updateUI() {
+            if (gameState.level < levels.length) {
+                const level = levels[gameState.level];
+                // Animate text change
+                missionText.style.opacity = '0';
+                setTimeout(() => {
+                    missionText.innerHTML = level.mission;
+                    missionText.style.opacity = '1';
+                }, 200);
+                
+                progressDisplay.textContent = `${gameState.level + 1} / ${levels.length}`;
+                pathDisplay.textContent = gameState.path;
+                
+                // Hide hint initially for new level
+                hintBox.classList.add('hidden');
+                hintText.textContent = level.hint;
+            }
+        }
+
+        function showHint() {
+            hintBox.classList.remove('hidden');
+            hintBox.classList.add('animate-pulse');
+            setTimeout(() => hintBox.classList.remove('animate-pulse'), 1000);
+        }
+
+        function triggerVictory() {
+            const modal = document.getElementById('victory-modal');
+            const content = document.getElementById('victory-content');
+            modal.classList.remove('hidden');
+            // Allow a brief reflow
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            });
+        }
+
+        // Utils
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Boot
+        initGame();
+
+    </script>
+</body>
+</html>
