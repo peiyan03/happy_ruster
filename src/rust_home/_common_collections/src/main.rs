@@ -25,7 +25,6 @@ fn main() {
     let second: &i32 = &_v3[1]; // Returns a reference to the element
     println!("The third element if v3: {}", third);
 
-
     // Get method returns an Option<&T>
     match _v3.get(1) { // get index 1, so second element
         Some(second) => println!("The second element is: {}", second),
